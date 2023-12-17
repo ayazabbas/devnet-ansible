@@ -1,0 +1,28 @@
+---
+- name: devnet
+  hosts: devnet
+  become: true
+  roles:
+    - devnet
+
+- name: Restart devnet bootnode
+  hosts: devnet
+  become: true
+  tasks:
+    - name: Restart geth
+      ansible.builtin.systemd:
+        name: geth
+        enabled: true
+        state: restarted
+    - name: sleep for 10s
+      ansible.builtin.pause:
+    - name: Restart prysm
+      ansible.builtin.systemd:
+        name: prysm
+        enabled: true
+        state: restarted
+    - name: Restart validator
+      ansible.builtin.systemd:
+        name: validator
+        enabled: true
+        state: restarted

@@ -1,0 +1,12 @@
+[Unit]
+  Description=Prysm: An Ethereum Consensus Implementation Written in Go
+
+[Service]
+  Type=simple
+  Restart=on-failure
+  RestartSec=5s
+  User=ubuntu
+  ExecStart={{ validator_command }}
+
+[Install]
+  WantedBy=multi-user.target

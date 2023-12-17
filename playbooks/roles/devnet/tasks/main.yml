@@ -1,0 +1,5 @@
+- name: configure devnet geth
+  include_tasks: geth.yml
+
+- name: configure devnet prysm
+  include_tasks: prysm.yml

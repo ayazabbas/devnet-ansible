@@ -1,0 +1,105 @@
+---
+- name: ensure prysm datadir exists
+  ansible.builtin.file:
+    path: "{{ prysm_datadir }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: 0755
+
+- name: ensure prysm validator datadir exists
+  ansible.builtin.file:
+    path: "{{ prysm_datadir }}/validator"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: 0755
+
+- name: download beacon-chain binary
+  ansible.builtin.get_url:
+    url: https://github.com/prysmaticlabs/prysm/releases/download/v{{ prysm_version }}/beacon-chain-v{{ prysm_version }}{{ '-modern' if ansible_architecture in ['amd64', "x86_64"] }}-linux-{{ 'amd64' if ansible_architecture in ['amd64', 'x86_64'] else 'arm64' if ansible_architecture in ['arm', 'aarch64'] }}
+    dest: /usr/local/bin/beacon-chain
+    force: true
+    owner: ubuntu
+    group: ubuntu
+    mode: 0755
+
+- name: write systemd config
+  ansible.builtin.template:
+    src: prysm.service.j2
+    dest: /etc/systemd/system/prysm.service
+    owner: ubuntu
+    group: wheel
+    mode: 0644
+  notify:
+    - reload systemd
+
+- name: enable prysm service
+  ansible.builtin.systemd:
+    name: prysm
+    enabled: true
+
+- name: download prysmctl binary
+  ansible.builtin.get_url:
+    url: https://github.com/prysmaticlabs/prysm/releases/download/v{{ prysm_version }}/prysmctl-v{{ prysm_version }}-linux-{{ 'amd64' if ansible_architecture in ['amd64', 'x86_64'] else 'arm64' if ansible_architecture in ['arm', 'aarch64'] }}
+    dest: /usr/local/bin/prysmctl
+    force: true
+    owner: ubuntu
+    group: ubuntu
+    mode: 0755
+
+- name: copy config
+  ansible.builtin.template:
+    src: config.yml.j2
+    dest: "{{ prysm_datadir }}/config.yml"
+    owner: ubuntu
+    group: ubuntu
+    mode: 0644
+
+# use consistent private key to start node with deterministic ENR
+- name: write p2p-priv-key
+  ansible.builtin.template:
+    src: privkey.j2
+    dest: "{{ prysm_datadir }}/privkey"
+    owner: ubuntu
+    group: ubuntu
+    mode: 0600
+
+- name: stat genesis
+  ansible.builtin.stat:
+    path: "{{ prysm_datadir }}/genesis.ssz"
+  register: ssz
+
+- name: write deposit data
+  ansible.builtin.copy:
+    src: deposit_data-1678732276.json
+    dest: "{{ prysm_datadir }}/deposit_data-1678732276.json"
+    owner: ubuntu
+    group: ubuntu
+    mode: 0644
+
+- name: generate genesis
+  become: true
+  become_user: ubuntu
+  ansible.builtin.command:
+    cmd: prysmctl testnet generate-genesis --num-validators=64 --output-ssz={{ prysm_datadir }}/genesis.ssz --chain-config-file={{ prysm_datadir }}/config.yml --fork=phase0
+  when: '{{ not ssz.stat.exists }}'
+
+- name: download validator binary
+  ansible.builtin.get_url:
+    url: https://github.com/prysmaticlabs/prysm/releases/download/v{{ prysm_version }}/validator-v{{ prysm_version }}-linux-{{ 'amd64' if ansible_architecture in ['amd64', 'x86_64'] else 'arm64' if ansible_architecture in ['arm', 'aarch64'] }}
+    dest: /usr/local/bin/validator
+    force: true
+    owner: ubuntu
+    group: ubuntu
+    mode: 0755
+
+- name: write validator systemd config
+  ansible.builtin.template:
+    src: validator.service.j2
+    dest: /etc/systemd/system/validator.service
+    owner: root
+    group: wheel
+    mode: 0644
+  notify:
+    - devnet reload systemd

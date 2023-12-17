@@ -1,0 +1,14 @@
+[Unit]
+Description=Geth
+
+[Service]
+Type=simple
+User=ubuntu
+Restart=always
+WorkingDirectory=/home/ubuntu
+Nice=-20
+ExecStart={{ geth_command }}
+TimeoutSec=900
+
+[Install]
+WantedBy=default.target

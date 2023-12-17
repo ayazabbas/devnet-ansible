@@ -1,0 +1,60 @@
+---
+chain_network_id: 3737
+devnet_geth_password: dreamboat2022
+devnet_validator_iv: d02947b666d48826bc72f621fff2ca5b
+devnet_validator_salt: 02842776c74b24337cbcece32b6ca72965ef67bbfabc90ff6d9cfd5aef732fc9
+devnet_geth_nodekey: dfdeda3c795faff489fcbd3cee7403bfb3f14b1cc1652c1e3bb828b3838c5186
+devnet_prysm_priv_key: c6e7fc682bbf7347afe83e950225f5ac7431caad8c7aa5b83d061fe7c48114eb
+geth_datadir: /data/ethereum
+geth_command: /usr/local/bin/geth
+  --http
+  --http.api "eth,engine"
+  --datadir={{ geth_data_dir }}
+  --allow-insecure-unlock
+  --unlock="0x48bdc4Ed4b6c6a0E32bD2D7075c99eD5F917DDA0"
+  --password={{ geth_data_dir }}/.gethpasswd
+  --syncmode=full
+  --networkid={{ chain_network_id }}
+  --mine
+  --miner.etherbase="0x48bdc4Ed4b6c6a0E32bD2D7075c99eD5F917DDA0"
+  --log.json
+  --metrics
+  --metrics.addr 0.0.0.0
+  --nat=extip:{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}
+prysm_datadir: /data/prysm
+prysm_version: 4.0.6
+prysm_command: /usr/local/bin/beacon-chain
+  --datadir={{ prysm_datadir }}
+  --min-sync-peers=0
+  --minimum-peers-per-subnet=0
+  --subscribe-all-subnets
+  --disable-staking-contract-check=true
+  --genesis-state={{ prysm_datadir }}/genesis.ssz
+  --interop-eth1data-votes
+  --chain-config-file={{ prysm_datadir }}/config.yml
+  --config-file={{ prysm_datadir }}/config.yml
+  --contract-deployment-block=0
+  --deposit-contract=0x4242424242424242424242424242424242424242
+  --chain-id={{ chain_network_id }}
+  --rpc-host=0.0.0.0
+  --grpc-gateway-host=0.0.0.0
+  --grpc-gateway-port 5052
+  --grpc-max-msg-size=100000000
+  --enable-debug-rpc-endpoints
+  --execution-endpoint=http://localhost:8551
+  --accept-terms-of-use
+  --jwt-secret={{ prysm_jwt_secret_path }}/jwtsecret
+  --suggested-fee-recipient=0x48bdc4Ed4b6c6a0E32bD2D7075c99eD5F917DDA0
+  --p2p-priv-key={{ prysm_datadir }}/privkey
+  --bootstrap-node=
+  --disable-peer-scorer
+validator_command: /usr/local/bin/validator
+  --beacon-rpc-provider=127.0.0.1:4000
+  --datadir={{ prysm_datadir }}/validator
+  --accept-terms-of-use
+  --interop-num-validators=64
+  --interop-start-index=0
+  --chain-config-file={{ prysm_datadir }}/config.yml
+  --config-file={{ prysm_datadir }}/config.yml
+  --suggested-fee-recipient=0x48bdc4Ed4b6c6a0E32bD2D7075c99eD5F917DDA0
+  --enable-builder

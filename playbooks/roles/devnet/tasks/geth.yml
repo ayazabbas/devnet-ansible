@@ -1,0 +1,102 @@
+---
+- name: ensure geth data dir exists
+  ansible.builtin.file:
+    path: "{{ geth_data_dir }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: 0755
+
+- name: ensure the geth repo is fully owned by ubuntu
+  ansible.builtin.file:
+    path: /home/ubuntu/go-ethereum
+    state: directory
+    recurse: true
+    owner: ubuntu
+    group: ubuntu
+
+- name: write geth systemd file
+  ansible.builtin.template:
+    src: geth.service.j2
+    dest: /etc/systemd/system/geth.service
+    owner: ubuntu
+    group: ubuntu
+    mode: 0644
+  notify:
+    - reload systemd
+
+- name: enable service
+  ansible.builtin.systemd:
+    name: geth
+    enabled: true
+
+- name: download geth binary
+  ansible.builtin.get_url:
+    url: https://gethstore.blob.core.windows.net/builds/geth-linux-amd64-1.12.0-e501b3b0.tar.gz
+    dest: /usr/local/bin/geth
+    force: true
+    owner: ubuntu
+    group: ubuntu
+    mode: 0755
+
+- name: stat genesis
+  ansible.builtin.stat:
+    path: "{{ geth_data_dir }}/genesis.json"
+  register: genesis
+
+- name: Set shanghai time as 26 minutes from now
+  ansible.builtin.set_fact:
+    shanghai_time: "{{ ansible_date_time.epoch | int + 1560 }}"
+
+- name: write genesis
+  ansible.builtin.template:
+    src: genesis.json.j2
+    dest: "{{ geth_data_dir }}/genesis.json"
+    owner: ubuntu
+    group: ubuntu
+    mode: 0744
+  when: '{{ "devnet_bootnode" in group_names and not genesis.stat.exists }}'
+
+- name: ensure keystore dir exists
+  ansible.builtin.file:
+    path: "{{ geth_data_dir }}/keystore"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: 0755
+
+- name: write keystore
+  ansible.builtin.template:
+    src: keystore.json.j2
+    dest: "{{ geth_data_dir }}/keystore/UTC--2022-10-06T17-06-49.513368963Z--48bdc4ed4b6c6a0e32bd2d7075c99ed5f917dda0"
+    owner: ubuntu
+    group: ubuntu
+    mode: 0600
+
+- name: write geth password
+  ansible.builtin.copy:
+    dest: "{{ geth_data_dir }}/.gethpasswd"
+    content: "{{ devnet_geth_password }}"
+    owner: ubuntu
+    group: ubuntu
+    mode: 0600
+
+- name: stat geth nodekey
+  ansible.builtin.stat:
+    path: "{{ geth_data_dir }}/geth/nodekey"
+  register: nodekey
+
+- name: init geth
+  become: true
+  become_user: ubuntu
+  ansible.builtin.command:
+    cmd: geth init --datadir {{ geth_data_dir }} {{ geth_data_dir }}/genesis.json
+  when: not nodekey.stat.exists
+
+- name: overwrite nodekey
+  ansible.builtin.template:
+    src: nodekey.j2
+    dest: "{{ geth_data_dir }}/geth/nodekey"
+    owner: ubuntu
+    group: ubuntu
+    mode: 0600
